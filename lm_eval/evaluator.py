@@ -38,6 +38,11 @@ def simple_evaluate(
     write_out: bool = False,
     log_samples: bool = True,
     gen_kwargs: str = None,
+    enable_ds_inference: bool = False,
+    checkpoint_config: str = "",
+    base_dir: str = "",
+    tensor_parallel_size: int = 1,
+    max_tokens: int = 4096
 ):
     """Instantiate and evaluate a model on a list of tasks.
 
@@ -100,12 +105,23 @@ def simple_evaluate(
             {
                 "batch_size": batch_size,
                 "max_batch_size": max_batch_size,
-                "device": device,
+                "device": device,,
+                "enable_ds_inference": enable_ds_inference
             },
         )
     else:
         assert isinstance(model, lm_eval.api.model.LM)
         lm = model
+
+    if enable_ds_inference:
+        import deepspeed 
+        deepspeed.init_inference(lm.model, 
+                                dtype=torch.bfloat16, 
+                                max_tokens=max_tokens, 
+                                replace_with_kernel_inject=True, 
+                                mp_size=tensor_parallel_size, 
+                                base_dir=base_dir, 
+                                checkpoint=checkpoint_config)
 
     if use_cache is not None:
         print(f"Using cache at {use_cache + '_rank' + str(lm.rank) + '.db'}")

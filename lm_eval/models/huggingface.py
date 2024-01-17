@@ -97,10 +97,11 @@ class HFLM(LM):
         # PEFT and quantization options
         peft: Optional[str] = None,
         autogptq: Optional[Union[bool, str]] = False,
+        enable_ds_inference: bool = False,
         **kwargs,
     ) -> None:
         super().__init__()
-
+        self.enable_ds_inference = enable_ds_inference
         # optionally: take in an already-initialized transformers.PreTrainedModel
         if not isinstance(pretrained, str):
             eval_logger.warning(
@@ -264,7 +265,7 @@ class HFLM(LM):
                         )
                     else:
                         pass
-                elif accelerator.num_processes == 1:
+                elif self.enable_ds_inference or accelerator.num_processes == 1:
                     # if we aren't launching via accelerate, ditch
                     self._rank = 0
                     self._world_size = 1
@@ -476,13 +477,27 @@ class HFLM(LM):
                         model_kwargs["bnb_4bit_compute_dtype"] = utils.get_dtype(
                             model_kwargs["bnb_4bit_compute_dtype"]
                         )
-            self._model = self.AUTO_MODEL_CLASS.from_pretrained(
-                pretrained,
-                revision=revision,
-                torch_dtype=utils.get_dtype(dtype),
-                trust_remote_code=trust_remote_code,
-                **model_kwargs,
-            )
+            
+            if self.enable_ds_inference:
+                import deepspeed
+                from transformers import AutoConfig
+                config = AutoConfig.from_pretrained(pretrained)
+                with deepspeed.OnDevice(dtype=torch.bfloat16, device="meta"):
+                    self._model = self.AUTO_MODEL_CLASS.from_config(
+                        config,
+                        # revision=revision,
+                        torch_dtype=utils.get_dtype(dtype),
+                        # trust_remote_code=trust_remote_code,
+                        **model_kwargs,
+                    )
+            else:
+                self._model = self.AUTO_MODEL_CLASS.from_pretrained(
+                    pretrained,
+                    revision=revision,
+                    torch_dtype=utils.get_dtype(dtype),
+                    trust_remote_code=trust_remote_code,
+                    **model_kwargs,
+                )
         else:
             try:
                 from auto_gptq import AutoGPTQForCausalLM
@@ -973,7 +988,6 @@ class HFLM(LM):
             multi_logits = F.log_softmax(
                 self._model_call(batched_inps, **call_kwargs), dim=-1
             )  # [batch, padding_length (inp or cont), vocab]
-
             for (cache_key, _, _), logits, inplen, cont_toks in zip(
                 chunk, multi_logits, inplens, cont_toks_list
             ):
