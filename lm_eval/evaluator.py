@@ -105,14 +105,13 @@ def simple_evaluate(
             {
                 "batch_size": batch_size,
                 "max_batch_size": max_batch_size,
-                "device": device,,
+                "device": device,
                 "enable_ds_inference": enable_ds_inference
             },
         )
     else:
         assert isinstance(model, lm_eval.api.model.LM)
         lm = model
-
     if enable_ds_inference:
         import deepspeed 
         deepspeed.init_inference(lm.model, 
@@ -121,7 +120,8 @@ def simple_evaluate(
                                 replace_with_kernel_inject=True, 
                                 mp_size=tensor_parallel_size, 
                                 base_dir=base_dir, 
-                                checkpoint=checkpoint_config)
+                                checkpoint=checkpoint_config
+                                )
 
     if use_cache is not None:
         print(f"Using cache at {use_cache + '_rank' + str(lm.rank) + '.db'}")
@@ -176,9 +176,9 @@ def simple_evaluate(
     if lm.rank == 0:
         # add info about the model and few shot config
         results["config"] = {
-            "model": model
-            if isinstance(model, str)
-            else model.model.config._name_or_path,
+            "model": 'yak-model', #model
+            # if isinstance(model, str)
+            # else model.model.config._name_or_path,
             "model_args": model_args,
             "batch_size": batch_size,
             "batch_sizes": list(lm.batch_sizes.values())

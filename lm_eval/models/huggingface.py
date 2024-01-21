@@ -205,7 +205,7 @@ class HFLM(LM):
         self.model.eval()
         self.model.tie_weights()
 
-        if (gpus >= 1 or str(self.device) == "mps") and isinstance(pretrained, str):
+        if False: #(gpus >= 1 or str(self.device) == "mps") and isinstance(pretrained, str):
             if not (parallelize or autogptq or ("device_map" in kwargs)):
                 # place model onto device requested manually,
                 # if not using HF Accelerate or device_map
@@ -284,7 +284,7 @@ class HFLM(LM):
                             DistributedType.MULTI_GPU,
                         ]
                     ), "Unsupported distributed type provided. Only DDP and FSDP are supported."
-                    if accelerator.distributed_type == DistributedType.FSDP:
+                    if False: #accelerator.distributed_type == DistributedType.FSDP:
                         self._model = accelerator.prepare(self.model)
                     else:
                         self._model = accelerator.prepare_model(
@@ -466,6 +466,7 @@ class HFLM(LM):
                     offload_folder,
                 )
             )
+
         if not autogptq:
             if model_kwargs.get("load_in_4bit", None):
                 assert (
@@ -477,7 +478,6 @@ class HFLM(LM):
                         model_kwargs["bnb_4bit_compute_dtype"] = utils.get_dtype(
                             model_kwargs["bnb_4bit_compute_dtype"]
                         )
-            
             if self.enable_ds_inference:
                 import deepspeed
                 from transformers import AutoConfig
@@ -497,7 +497,8 @@ class HFLM(LM):
                     torch_dtype=utils.get_dtype(dtype),
                     trust_remote_code=trust_remote_code,
                     **model_kwargs,
-                )
+                ).to(torch.cuda.current_device())
+
         else:
             try:
                 from auto_gptq import AutoGPTQForCausalLM
@@ -984,10 +985,11 @@ class HFLM(LM):
                     "attn_mask": batched_encoder_mask,
                     "labels": batched_conts,
                 }
-
             multi_logits = F.log_softmax(
                 self._model_call(batched_inps, **call_kwargs), dim=-1
             )  # [batch, padding_length (inp or cont), vocab]
+                # print(multi_logits)
+                # exit()
             for (cache_key, _, _), logits, inplen, cont_toks in zip(
                 chunk, multi_logits, inplens, cont_toks_list
             ):
