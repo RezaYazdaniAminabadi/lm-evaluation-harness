@@ -482,7 +482,7 @@ class HFLM(LM):
                 import deepspeed
                 from transformers import AutoConfig
                 config = AutoConfig.from_pretrained(pretrained)
-                with deepspeed.OnDevice(dtype=torch.bfloat16, device="meta"):
+                with deepspeed.OnDevice(dtype=utils.get_dtype(dtype), device="meta"):
                     self._model = self.AUTO_MODEL_CLASS.from_config(
                         config,
                         # revision=revision,
