@@ -43,7 +43,8 @@ def simple_evaluate(
     base_dir: str = "",
     tensor_parallel_size: int = 1,
     max_tokens: int = 4096,
-    dtype: torch.dtype = torch.bfloat16
+    dtype: torch.dtype = torch.bfloat16,
+    use_base_implementation: bool = False
 ):
     """Instantiate and evaluate a model on a list of tasks.
 
@@ -121,7 +122,8 @@ def simple_evaluate(
                                 replace_with_kernel_inject=True, 
                                 mp_size=tensor_parallel_size, 
                                 base_dir=base_dir, 
-                                checkpoint=checkpoint_config
+                                checkpoint=checkpoint_config,
+                                use_base_implementation=use_base_implementation
                                 )
 
     if use_cache is not None:
